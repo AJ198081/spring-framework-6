@@ -22,7 +22,7 @@
 
     <modules>
         <module>authors-books-thymeleaf</module>
-        <module>dependency-injection</module>
+        <module>dependency-injection-profiles</module>
     </modules>
 
     <properties>
