@@ -9,7 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spring-6</artifactId>
+    <artifactId>authors-books-thymeleaf</artifactId>
 
     <dependencies>
         <dependency>

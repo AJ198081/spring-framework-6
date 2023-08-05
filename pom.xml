@@ -21,7 +21,8 @@
     <description>spring-6-sandbox</description>
 
     <modules>
-        <module>spring-6</module>
+        <module>authors-books-thymeleaf</module>
+        <module>dependency-injection</module>
     </modules>
 
     <properties>
