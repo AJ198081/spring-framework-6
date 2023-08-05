@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Books - Web-Series</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+</head>
+<body>
+
+<h1 class="title">All available books</h1>
+
+<table class="table">
+    <tr class="table-header">
+        <th>Id</th>
+        <th>Title</th>
+        <th>Publisher</th>
+        <th>Author</th>
+    </tr>
+    <tr class="summary-table" th:each="book : ${books}">
+        <td th:text="${book.id}">234</td>
+        <td th:text="${book.title}">Spring in action</td>
+        <td th:text="${book.publisher.publisherName}">Wrox</td>
+        <td th:with="author=${book.authors.stream().findFirst().orElseThrow()}">
+            <p th:text="${author.firstName} + ' ' + ${author.lastName}"></p>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
