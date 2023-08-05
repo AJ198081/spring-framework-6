@@ -11,7 +11,7 @@ target/
 *.iws
 *.iml
 *.ipr
-misc.xml
+.idea/misc.xml
 index.pb
 encordings.xml
 
