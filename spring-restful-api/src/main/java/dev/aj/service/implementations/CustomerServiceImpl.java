@@ -5,10 +5,7 @@ import dev.aj.service.CustomerService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 @Service
 public class CustomerServiceImpl implements CustomerService {
@@ -60,7 +57,8 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Customer getCustomerById(Long id) {
-        return customersMap.getOrDefault(id, new Customer());
+        Optional<Customer> optionalCustomer = Optional.ofNullable(customersMap.get(id));
+        return optionalCustomer.orElseThrow(() -> new NoSuchElementException("Unable to find customer with Id - " + id));
     }
 
     @Override
@@ -79,6 +77,11 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer updateExistingCustomer(Long id, Customer customer) {
         return customersMap.containsKey(id) ? updateCustomer(id, customer) : saveNewCustomer(customer);
+    }
+
+    @Override
+    public void deleteExistingCustomer(Long id) {
+        customersMap.remove(id);
     }
 
     private Customer updateCustomer(Long id, Customer customer) {

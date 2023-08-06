@@ -2,6 +2,7 @@ package dev.aj.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.aj.domain.enums.BeerStyle;
 import dev.aj.domain.model.Beer;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
@@ -12,6 +13,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +38,7 @@ class BeerControllerTest {
     private TestRestTemplate restTemplate;
     @LocalServerPort
     private int portNumber;
+    private Beer savedBeer;
 
     @BeforeAll
     static void beforeAll() {
@@ -74,7 +77,9 @@ class BeerControllerTest {
         ResponseEntity<List<Beer>> exchange = restTemplate.exchange(requestEntityForAllBeers, new ParameterizedTypeReference<>() {
         });
 
-        savedBeerUuid = exchange.getBody().stream().map(Beer::getId).findFirst().orElseThrow();
+        List<Beer> body = exchange.getBody();
+        savedBeer = body.get(0);
+        savedBeerUuid = body.stream().map(Beer::getId).findFirst().orElseThrow();
 
         Assertions.assertThat(exchange)
                 .extracting(ResponseEntity::getStatusCode)
@@ -129,4 +134,33 @@ class BeerControllerTest {
 
         Assertions.assertThat(location).startsWith("/id/");
     }
+
+    @Test
+    void deleteExistingBeer() {
+
+        RequestEntity<Object> requestEntity = new RequestEntity<>(HttpMethod.DELETE, URI.create(beerUrl + "/" + savedBeer.getId()));
+
+        ResponseEntity<ResponseEntity> exchange = restTemplate.exchange(requestEntity, ResponseEntity.class);
+
+        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
+    }
+
+    @Test
+    @Disabled(value = "Patch is a non-standard method, hence being left alone")
+    void patchExistingBeer() throws JsonProcessingException {
+        savedBeer.setBeerStyle(BeerStyle.PORTER);
+        savedBeer.setPrice(new BigDecimal("20.99"));
+        savedBeer.setUpc("989898");
+        savedBeer.setBeerName("Flash");
+        RequestEntity<String> requestEntity = new RequestEntity<>(objectMapper.writeValueAsString(savedBeer), HttpMethod.PATCH, URI.create(beerUrl + "/" + savedBeer.getId()));
+
+        ResponseEntity<Beer> exchange = restTemplate.exchange(requestEntity, Beer.class);
+
+        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
+        Assertions.assertThat(exchange.getBody())
+                .extracting(Beer::getBeerStyle, Beer::getPrice, Beer::getUpc, Beer::getBeerName)
+                .contains(BeerStyle.PORTER, 20.99, "989898", "Flash");
+    }
+
+
 }

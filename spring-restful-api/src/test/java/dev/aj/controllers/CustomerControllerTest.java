@@ -14,6 +14,7 @@ import org.springframework.http.*;
 
 import java.net.URI;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -106,6 +107,16 @@ class CustomerControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
         Assertions.assertThat(exchange.getBody()).extracting(Customer::getFirstName, Customer::getLastName)
                 .contains("AJ", "Sikh");
+
+    }
+
+    @Test
+    void deleteAnExistingCustomer() {
+
+        RequestEntity<Object> requestEntity = new RequestEntity<>(HttpMethod.DELETE, URI.create(HOST_NAME + portNumber + "/customers/customer/" + savedCustomer.getId()));
+
+        var exchange = restTemplate.exchange(requestEntity, ResponseEntity.class);
+        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
 
     }
 }

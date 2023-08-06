@@ -3,6 +3,7 @@ package dev.aj.service.implementations;
 import dev.aj.domain.enums.BeerStyle;
 import dev.aj.domain.model.Beer;
 import dev.aj.service.BeerService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -90,6 +91,45 @@ public class BeerServiceImpl implements BeerService {
         }
 
         return savedBeer;
+    }
+
+    @Override
+    public void deleteBeerById(UUID beerId) {
+        beerMap.remove(beerId);
+    }
+
+    @Override
+    public Beer patchExistingBeer(UUID beerId, Beer beer) {
+        Beer patchedBeer = null;
+        if (beerMap.containsKey(beerId)) {
+            patchedBeer = patchBeerObject(beerId, beer);
+        }
+        return patchedBeer;
+    }
+
+    private Beer patchBeerObject(UUID beerId, Beer beer) {
+        Beer existingBeer = beerMap.get(beerId);
+
+        existingBeer.setVersion(existingBeer.getVersion() + 1);
+        existingBeer.setUpdatedDate(LocalDateTime.now());
+
+        if (StringUtils.isBlank(beer.getBeerName())){
+            existingBeer.setBeerName(beer.getBeerName());
+        }
+
+        if (StringUtils.isBlank(beer.getUpc())) {
+            existingBeer.setUpc(beer.getUpc());
+        }
+
+        if (!Objects.isNull(beer.getPrice())) {
+            existingBeer.setPrice(beer.getPrice());
+        }
+
+        if (Arrays.stream(BeerStyle.values()).anyMatch(beerStyle -> beerStyle.equals(beer.getBeerStyle()))) {
+            existingBeer.setBeerStyle(beer.getBeerStyle());
+        }
+
+        return existingBeer;
     }
 
     private Beer updateBeer(Beer beerToBeUpdated) {
