@@ -2,12 +2,13 @@ package dev.aj.controllers;
 
 import dev.aj.domain.model.Customer;
 import dev.aj.service.CustomerService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,5 +31,26 @@ public class CustomerController {
         log.info("Request received to fetch customer Id - {}", id);
         return customerService.getCustomerById(id);
     }
+
+    @PostMapping
+    public ResponseEntity<Customer> createNewCustomer(@RequestBody Customer customer) {
+
+        Customer savedCustomer = customerService.saveNewCustomer(customer);
+
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.add("Location", "/customer/" + savedCustomer.getId());
+
+        return new ResponseEntity<>(savedCustomer, httpHeaders, HttpStatus.OK);
+    }
+
+    @PutMapping(path = "/customer/{customerId}")
+    public ResponseEntity<Customer> updateExistingCustomer(@PathVariable(value = "customerId") Long id, @RequestBody Customer customer) {
+
+        Customer updatedCustomer = customerService.updateExistingCustomer(id, customer);
+
+        return new ResponseEntity<>(updatedCustomer, HttpStatus.OK);
+
+    }
+
 
 }
