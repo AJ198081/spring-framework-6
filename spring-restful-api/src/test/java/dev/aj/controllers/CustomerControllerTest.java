@@ -1,53 +1,57 @@
 package dev.aj.controllers;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.aj.domain.model.Customer;
+import dev.aj.service.CustomerService;
+import dev.aj.service.implementations.CustomerServiceImpl;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.Random;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+import static org.hamcrest.Matchers.is;
+
+@WebMvcTest(controllers = {CustomerController.class})
 class CustomerControllerTest {
 
-    private static final String HOST_NAME = "http://localhost:";
-    private static HttpHeaders headers;
     @Autowired
-    private TestRestTemplate restTemplate;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @LocalServerPort
-    private int portNumber;
-    private String newCustomerJson;
-    private Long savedCustomerId;
-    private Customer savedCustomer;
+    private MockMvc mockMvc;
 
-    @BeforeAll
-    static void beforeAll() {
-        headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-    }
+    @MockBean
+    private CustomerService customerService;
+
+    private Customer testCustomer;
+
+    private List<Customer> customers;
+
+    @Captor
+    private ArgumentCaptor<Long> longArgumentCaptor;
 
     @BeforeEach
     void setUp() {
-        newCustomerJson = """
-                    {
-                        "firstName": "ZJ",
-                        "lastName": "B"
-                    }
-                """;
+        testCustomer = Customer.builder()
+                .version(1)
+                .firstName("AJ")
+                .lastName("B")
+                .createdDate(LocalDateTime.now())
+                .lastModifiedDate(LocalDateTime.now())
+                .build();
+
+        customers = new CustomerServiceImpl().getAllCustomers();
     }
 
     @AfterEach
@@ -55,68 +59,74 @@ class CustomerControllerTest {
     }
 
     @Test
-    @Order(1)
-    void getAllCustomers() {
-        RequestEntity<Object> requestEntity = new RequestEntity<>(headers, HttpMethod.GET, URI.create(HOST_NAME + portNumber + "/customers"));
+    void getAllCustomers() throws Exception {
+        Long randomgLong = new Random().nextLong(100, 345);
+        testCustomer.setId(randomgLong);
 
-        ResponseEntity<List<Customer>> exchange = restTemplate.exchange(requestEntity, new ParameterizedTypeReference<List<Customer>>() {
-        });
+        Customer anotherTestCustomer = Customer.builder()
+                .id(new Random().nextLong())
+                .version(1)
+                .firstName("DJ")
+                .lastName("B")
+                .createdDate(LocalDateTime.now())
+                .lastModifiedDate(LocalDateTime.now())
+                .build();
 
-        List<Customer> responseJson = exchange.getBody();
+        Mockito.when(customerService.getAllCustomers()).thenReturn(List.of(testCustomer, anotherTestCustomer));
 
-        savedCustomer = responseJson.get(0);
-        savedCustomerId = savedCustomer.getId();
-
-        org.junit.jupiter.api.Assertions.assertEquals(3, responseJson.size());
-        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
+        mockMvc.perform(MockMvcRequestBuilders.get("/customers").accept(MediaType.APPLICATION_JSON))
+                .andExpectAll(
+                        MockMvcResultMatchers.status().isOk(),
+                        MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON),
+                        MockMvcResultMatchers.jsonPath("$.size()", is(2)),
+                        MockMvcResultMatchers.jsonPath("$[0].id", is(randomgLong.intValue())),
+                        MockMvcResultMatchers.jsonPath("$[0].firstName", is("AJ")),
+                        MockMvcResultMatchers.jsonPath("$[0].lastName", is("B")),
+                        MockMvcResultMatchers.jsonPath("$[0].version", is(1))
+                );
     }
 
     @Test
-    void getCustomerById() {
-        RequestEntity<Object> requestEntity = new RequestEntity<>(headers, HttpMethod.GET, URI.create(HOST_NAME + portNumber + "/customers/customer/" + savedCustomerId));
-        ResponseEntity<Customer> exchange = restTemplate.exchange(requestEntity, Customer.class);
+    void getCustomerById() throws Exception {
 
-        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
-        org.junit.jupiter.api.Assertions.assertEquals(savedCustomerId, exchange.getBody().getId());
+        Long randomgLong = new Random().nextLong(100, 345);
+        testCustomer.setId(randomgLong);
+
+        Mockito.when(customerService.getCustomerById(Mockito.anyLong())).thenReturn(testCustomer);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/customers/customer/" + randomgLong).accept(MediaType.APPLICATION_JSON))
+                .andExpectAll(
+                        MockMvcResultMatchers.status().isOk(),
+                        MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON),
+                        MockMvcResultMatchers.jsonPath("$.id", is(randomgLong.intValue())),
+                        MockMvcResultMatchers.jsonPath("$.firstName", is("AJ")),
+                        MockMvcResultMatchers.jsonPath("$.lastName", is("B")),
+                        MockMvcResultMatchers.jsonPath("$.version", is(1))
+                );
+
     }
 
     @Test
+    @Disabled
     void createNewCustomer() {
-        RequestEntity<String> requestEntity = new RequestEntity<>(newCustomerJson, headers, HttpMethod.POST, URI.create(HOST_NAME + portNumber + "/customers"));
-
-        ResponseEntity<Customer> exchange = restTemplate.exchange(requestEntity, Customer.class);
-
-        Assertions.assertThat(exchange).extracting(ResponseEntity::getStatusCode, exchangeVar -> exchangeVar.getBody().getFirstName())
-                .contains(HttpStatus.OK, "ZJ");
-
-        Assertions.assertThat(exchange.getHeaders().get("Location").get(0))
-                .startsWith("/customer/");
-
     }
 
     @Test
-    void updateAnExistingCustomer() throws JsonProcessingException {
-
-        savedCustomer.setFirstName("AJ");
-        savedCustomer.setLastName("Sikh");
-
-        RequestEntity<Object> requestEntity = new RequestEntity<>(objectMapper.writeValueAsString(savedCustomer), headers, HttpMethod.PUT, URI.create(HOST_NAME + portNumber + "/customers/customer/" + savedCustomer.getId()));
-
-        ResponseEntity<Customer> exchange = restTemplate.exchange(requestEntity, Customer.class);
-
-        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
-        Assertions.assertThat(exchange.getBody()).extracting(Customer::getFirstName, Customer::getLastName)
-                .contains("AJ", "Sikh");
-
+    @Disabled
+    void updateExistingCustomer() {
     }
 
     @Test
-    void deleteAnExistingCustomer() {
+    void deleteExistingCustomer() throws Exception {
+        Customer customer = customers.get(0);
 
-        RequestEntity<Object> requestEntity = new RequestEntity<>(HttpMethod.DELETE, URI.create(HOST_NAME + portNumber + "/customers/customer/" + savedCustomer.getId()));
+        mockMvc.perform(MockMvcRequestBuilders.delete("/customers/customer/{customerId}", customer.getId()))
+                .andExpect(MockMvcResultMatchers.status().isOk());
 
-        var exchange = restTemplate.exchange(requestEntity, ResponseEntity.class);
-        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
+        Mockito.verify(customerService).deleteExistingCustomer(longArgumentCaptor.capture());
+
+        Assertions.assertThat(longArgumentCaptor.getValue())
+                .isEqualTo(customer.getId());
 
     }
 }

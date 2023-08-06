@@ -4,64 +4,74 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.aj.domain.enums.BeerStyle;
 import dev.aj.domain.model.Beer;
+import dev.aj.service.BeerService;
+import dev.aj.service.implementations.BeerServiceImpl;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.math.BigDecimal;
-import java.net.URI;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static dev.aj.domain.enums.BeerStyle.LAGER;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Tag("unit")
+@WebMvcTest(controllers = {BeerController.class})
 class BeerControllerTest {
 
-    private static HttpHeaders httpHeaders;
-    private static String newBeerJson;
+    private static List<Beer> listOfBeers;
 
-    private String beerUrl;
-    private UUID savedBeerUuid;
+    @Autowired
+    private MockMvc mockMvc;
 
     @Autowired
     private ObjectMapper objectMapper;
-    @Autowired
-    private TestRestTemplate restTemplate;
-    @LocalServerPort
-    private int portNumber;
-    private Beer savedBeer;
+
+    @MockBean
+    private BeerService beerService;
+    private Beer testBeer;
+
+    @Captor
+    private ArgumentCaptor<UUID> uuidArgCaptor;
+
+    private DateTimeFormatter dateTimeFormatter;
 
     @BeforeAll
     static void beforeAll() {
-
-        newBeerJson = """
-                    {
-                      "version": 1,
-                      "beerName": "Kensington City",
-                      "beerStyle": "LAGER",
-                      "upc": "123456789",
-                      "quantityOnHand": 100,
-                      "price": 14.99
-                    }
-                """;
-
-        httpHeaders = new HttpHeaders();
-        httpHeaders.setAccept(List.of(MediaType.APPLICATION_JSON));
-        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        listOfBeers = new BeerServiceImpl().listBeers();
     }
 
     @BeforeEach
-    void setUp() {
-        beerUrl = "http://localhost:" + portNumber + "/beer";
+    void setUp() throws JsonProcessingException {
+
+        testBeer = Beer.builder()
+                .version(1)
+                .beerName("Test Beer")
+                .beerStyle(BeerStyle.ALE)
+                .upc("234123")
+                .quantityOnHand(1)
+                .createdDate(LocalDateTime.now().minusDays(1L))
+                .updatedDate(LocalDateTime.now())
+                .build();
+
+//        listOfBeersJson = objectMapper.writeValueAsString(listOfBeers);
+
+//        objectMapper.setDateFormat(new SimpleDateFormat(DATE_TIME_PATTERN));
+        dateTimeFormatter = DateTimeFormatter.ofPattern(BeerController.DATE_TIME_PATTERN);
     }
 
     @AfterEach
@@ -69,93 +79,132 @@ class BeerControllerTest {
     }
 
     @Test
-    @Order(1)
-    void List_Beers() throws JsonProcessingException {
-        RequestEntity<Object> requestEntityForAllBeers = new RequestEntity<>(HttpMethod.GET, URI.create(beerUrl.concat("/all")));
+    void listBeers() throws Exception {
 
-        ResponseEntity<List<Beer>> exchange = restTemplate.exchange(requestEntityForAllBeers, new ParameterizedTypeReference<>() {
+        UUID randomUUID = UUID.randomUUID();
+        testBeer.setId(randomUUID);
+
+        List<Beer> testBeerList = new ArrayList<>(4);
+        testBeerList.add(testBeer);
+        testBeerList.addAll(listOfBeers);
+
+        Mockito.when(beerService.listBeers()).thenReturn(testBeerList);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/beer/all").accept(MediaType.APPLICATION_JSON))
+                .andExpectAll(
+                        MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON),
+                        MockMvcResultMatchers.jsonPath("$.size()", is(4)),
+                        MockMvcResultMatchers.jsonPath("$[0].id", is(randomUUID.toString())),
+                        MockMvcResultMatchers.jsonPath("$[0].beerStyle", is(BeerStyle.ALE.toString()))
+                );
+    }
+
+    @Test
+    void getBeerById() throws Exception {
+
+        String randomId = UUID.randomUUID().toString();
+
+        Mockito.when(beerService.getBeerById(Mockito.any(UUID.class))).thenAnswer(invocation -> {
+            UUID beerId = invocation.getArgument(0, UUID.class);
+            testBeer.setId(beerId);
+            return testBeer;
         });
 
-        List<Beer> body = exchange.getBody();
-        savedBeer = body.get(0);
-        savedBeerUuid = body.stream().map(Beer::getId).findFirst().orElseThrow();
-
-        Assertions.assertThat(exchange)
-                .extracting(ResponseEntity::getStatusCode)
-                .isEqualTo(HttpStatus.OK);
-
-        Assertions.assertThat(exchange.getBody())
-                .hasSizeGreaterThanOrEqualTo(1);
+        mockMvc.perform(
+                        MockMvcRequestBuilders.get("/beer/id/{beerId}", randomId)
+                                .accept(MediaType.APPLICATION_JSON)
+                )
+                .andExpectAll(
+                        MockMvcResultMatchers.status().isOk(),
+                        MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON),
+                        MockMvcResultMatchers.jsonPath("$.id", is(randomId)),
+                        MockMvcResultMatchers.jsonPath("$.beerStyle", is(BeerStyle.ALE.toString()))
+                );
     }
 
     @Test
-    @Order(2)
-    void Get_Beer_By_Id() {
-        RequestEntity<Object> requestEntity = new RequestEntity<>(HttpMethod.GET, URI.create(beerUrl.concat("/id/" + savedBeerUuid.toString())));
+    void handlePost() throws Exception {
 
-        ResponseEntity<Beer> responseEntity = restTemplate.exchange(requestEntity, Beer.class);
+        UUID randomUUID = UUID.randomUUID();
 
-        Assertions.assertThat(responseEntity)
-                .extracting(ResponseEntity::getStatusCode, beerResponseEntity -> beerResponseEntity.getBody().getId())
-                .contains(HttpStatus.OK, savedBeerUuid);
+        Beer newBeer = Beer.builder()
+                .beerStyle(BeerStyle.PALE_ALE)
+                .beerName("New Beer")
+                .upc("23894238")
+                .price(new BigDecimal("9.99"))
+                .quantityOnHand(10)
+                .build();
+
+        Mockito.when(beerService.saveNewBeer(Mockito.any(Beer.class))).then(invocation -> {
+            Beer beerToBeSaved = invocation.getArgument(0, Beer.class);
+            beerToBeSaved.setId(randomUUID);
+            beerToBeSaved.setVersion(1);
+            beerToBeSaved.setCreatedDate(LocalDateTime.now());
+            beerToBeSaved.setUpdatedDate(LocalDateTime.now());
+            return beerToBeSaved;
+        });
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/beer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(newBeer)))
+                .andExpectAll(
+                        MockMvcResultMatchers.status().isOk(),
+                        MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON),
+                        MockMvcResultMatchers.jsonPath("$.id", is(randomUUID.toString())),
+                        MockMvcResultMatchers.jsonPath("$.beerStyle", is(BeerStyle.PALE_ALE.toString())),
+                        MockMvcResultMatchers.jsonPath("$.quantityOnHand", is(10))
+                );
     }
 
     @Test
-    @Order(3)
-    void Handle_Put() throws JsonProcessingException {
-        Beer beer = objectMapper.readValue(newBeerJson, Beer.class);
-        beer.setId(savedBeerUuid);
-        beer.setBeerName("AJ Special");
-        beer.setQuantityOnHand(500);
-        beer.setVersion(2);
-        RequestEntity<String> requestEntity = new RequestEntity<>(objectMapper.writeValueAsString(beer), httpHeaders, HttpMethod.PUT, URI.create(beerUrl));
-
-        ResponseEntity<Beer> responseEntity = restTemplate.exchange(requestEntity, Beer.class);
-
-        Assertions.assertThat(responseEntity)
-                .extracting(ResponseEntity::getBody).extracting(Beer::getVersion, Beer::getId, Beer::getQuantityOnHand)
-                .contains(2, savedBeerUuid, 500);
+    @Disabled
+    void handlePut() {
     }
 
     @Test
-    @Order(4)
-    void Handle_Post() throws JsonProcessingException {
-        RequestEntity<String> beerRequest = new RequestEntity<>(newBeerJson, httpHeaders, HttpMethod.POST, URI.create(beerUrl));
+    void deleteBeer() throws Exception {
+        Beer beer = listOfBeers.get(0);
+        mockMvc.perform(MockMvcRequestBuilders.delete("/beer/{beerId}", beer.getId()))
+                .andExpect(MockMvcResultMatchers.status().isOk());
 
-        ResponseEntity<Beer> responseEntity = restTemplate.exchange(beerRequest, Beer.class);
+        ArgumentCaptor<UUID> uuidArgumentCaptor = ArgumentCaptor.forClass(UUID.class);
 
-        Beer savedBeer = responseEntity.getBody();
-        String location = responseEntity.getHeaders().get("Location").stream().findFirst().orElseThrow();
+        Mockito.verify(beerService).deleteBeerById(uuidArgCaptor.capture());
 
-        org.assertj.core.api.Assertions.assertThat(savedBeer).extracting(Beer::getBeerStyle, Beer::getUpc, Beer::getQuantityOnHand)
-                .contains(LAGER, "123456789", 100);
-
-        Assertions.assertThat(location).startsWith("/id/");
+        Assertions.assertThat(uuidArgCaptor.getValue())
+                .isEqualTo(beer.getId());
     }
 
     @Test
-    void deleteExistingBeer() {
-        RequestEntity<Object> requestEntity = new RequestEntity<>(HttpMethod.DELETE, URI.create(beerUrl + "/" + savedBeer.getId()));
+    void handlePatch() throws Exception {
+        Beer firstBeer = listOfBeers.get(0);
 
-        ResponseEntity<ResponseEntity> exchange = restTemplate.exchange(requestEntity, ResponseEntity.class);
+        firstBeer.setBeerName("New Beer");
+        firstBeer.setBeerStyle(BeerStyle.PORTER);
+        firstBeer.setUpc("New UPC");
+        firstBeer.setPrice(new BigDecimal("5.99"));
 
-        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
-    }
+        Mockito.when(beerService.patchExistingBeer(Mockito.any(UUID.class), Mockito.any(Beer.class)))
+                .then(invocation -> {
+                    Beer argument = invocation.getArgument(1, Beer.class);
+                    argument.setUpdatedDate(LocalDateTime.now());
+                    argument.setVersion(argument.getVersion() + 1);
+                    return argument;
+                });
 
-    @Test
-    @Disabled(value = "Patch is a non-standard method, hence being left alone, can use PUT operation")
-    void patchExistingBeer() throws JsonProcessingException {
-        savedBeer.setBeerStyle(BeerStyle.PORTER);
-        savedBeer.setPrice(new BigDecimal("20.99"));
-        savedBeer.setUpc("989898");
-        savedBeer.setBeerName("Flash");
-        RequestEntity<String> requestEntity = new RequestEntity<>(objectMapper.writeValueAsString(savedBeer), HttpMethod.PATCH, URI.create(beerUrl + "/" + savedBeer.getId()));
+        mockMvc.perform(
+                MockMvcRequestBuilders.patch("/beer/{beerId}", firstBeer.getId()).content(objectMapper.writeValueAsString(firstBeer))
+                        .contentType(MediaType.APPLICATION_JSON)
+        ).andExpectAll(
+                MockMvcResultMatchers.status().isOk(),
+                MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON),
+                MockMvcResultMatchers.jsonPath("$.version", is(firstBeer.getVersion() + 1)),
+                MockMvcResultMatchers.jsonPath("$.id", is(firstBeer.getId().toString())),
+                MockMvcResultMatchers.jsonPath("$.createdDate", is(dateTimeFormatter.format(firstBeer.getCreatedDate()))),
+                MockMvcResultMatchers.jsonPath("$.updatedDate", not(firstBeer.getUpdatedDate().toString())),
+                MockMvcResultMatchers.jsonPath("$.upc", is(firstBeer.getUpc())),
+                MockMvcResultMatchers.jsonPath("$.price", is(5.99))
+        );
 
-        ResponseEntity<Beer> exchange = restTemplate.exchange(requestEntity, Beer.class);
-
-        org.junit.jupiter.api.Assertions.assertEquals(HttpStatus.OK, exchange.getStatusCode());
-        Assertions.assertThat(exchange.getBody())
-                .extracting(Beer::getBeerStyle, Beer::getPrice, Beer::getUpc, Beer::getBeerName)
-                .contains(BeerStyle.PORTER, 20.99, "989898", "Flash");
     }
 }

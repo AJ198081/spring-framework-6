@@ -73,6 +73,7 @@ public class BeerServiceImpl implements BeerService {
     @Override
     public Beer saveNewBeer(Beer beer) {
         beer.setId(UUID.randomUUID());
+        beer.setVersion(1);
         beer.setCreatedDate(LocalDateTime.now());
         beer.setUpdatedDate(LocalDateTime.now());
         beerMap.put(beer.getId(), beer);
