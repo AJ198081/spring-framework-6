@@ -71,7 +71,6 @@ class BeerControllerTest {
     @Test
     @Order(1)
     void List_Beers() throws JsonProcessingException {
-
         RequestEntity<Object> requestEntityForAllBeers = new RequestEntity<>(HttpMethod.GET, URI.create(beerUrl.concat("/all")));
 
         ResponseEntity<List<Beer>> exchange = restTemplate.exchange(requestEntityForAllBeers, new ParameterizedTypeReference<>() {
@@ -121,7 +120,6 @@ class BeerControllerTest {
     @Test
     @Order(4)
     void Handle_Post() throws JsonProcessingException {
-
         RequestEntity<String> beerRequest = new RequestEntity<>(newBeerJson, httpHeaders, HttpMethod.POST, URI.create(beerUrl));
 
         ResponseEntity<Beer> responseEntity = restTemplate.exchange(beerRequest, Beer.class);
@@ -137,7 +135,6 @@ class BeerControllerTest {
 
     @Test
     void deleteExistingBeer() {
-
         RequestEntity<Object> requestEntity = new RequestEntity<>(HttpMethod.DELETE, URI.create(beerUrl + "/" + savedBeer.getId()));
 
         ResponseEntity<ResponseEntity> exchange = restTemplate.exchange(requestEntity, ResponseEntity.class);
@@ -146,7 +143,7 @@ class BeerControllerTest {
     }
 
     @Test
-    @Disabled(value = "Patch is a non-standard method, hence being left alone")
+    @Disabled(value = "Patch is a non-standard method, hence being left alone, can use PUT operation")
     void patchExistingBeer() throws JsonProcessingException {
         savedBeer.setBeerStyle(BeerStyle.PORTER);
         savedBeer.setPrice(new BigDecimal("20.99"));
@@ -161,6 +158,4 @@ class BeerControllerTest {
                 .extracting(Beer::getBeerStyle, Beer::getPrice, Beer::getUpc, Beer::getBeerName)
                 .contains(BeerStyle.PORTER, 20.99, "989898", "Flash");
     }
-
-
 }
