@@ -1,22 +1,26 @@
 package dev.aj.domain.model;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import dev.aj.controllers.BeerController;
 import dev.aj.domain.enums.BeerStyle;
+import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
+@ToString
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
 public class Beer {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(length = 36, nullable = false, updatable = false, columnDefinition = "varchar")
     private UUID id;
 
     private Integer version;

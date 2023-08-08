@@ -3,7 +3,9 @@ package dev.aj.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.aj.domain.model.Beer;
+import dev.aj.exception_handling.NotFoundException;
 import dev.aj.service.BeerService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/beer")
+@Slf4j
 public class BeerController {
 
     public static final String DATE_TIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSSS";
@@ -35,12 +38,8 @@ public class BeerController {
 
     @GetMapping(path = "/all")
     public List<Beer> listBeers() {
-        return beerService.listBeers();
-    }
 
-    @GetMapping(path = "/id/{id}")
-    public Beer getBeerById(@PathVariable(value = "id") UUID uuid) {
-        return beerService.getBeerById(uuid);
+        return beerService.listBeers();
     }
 
     @PostMapping
@@ -64,10 +63,28 @@ public class BeerController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    @GetMapping(path = "/id/{id}")
+    public Beer getBeerById(@PathVariable(value = "id") UUID uuid) {
+
+        Beer beerFromDB = beerService.getBeerById(uuid);
+
+        if (beerFromDB.getId().equals(uuid)) {
+            return beerFromDB;
+        } else {
+            throw new NotFoundException("Unable to find beer with ID - " + uuid);
+        }
+    }
+
     @PatchMapping(path = "/{beerId}")
     public ResponseEntity<Beer> patchBeer(@PathVariable UUID beerId, @RequestBody Beer beer) {
         Beer patchedBeer = beerService.patchExistingBeer(beerId, beer);
         return new ResponseEntity<>(patchedBeer, HttpStatus.OK);
     }
+
+    /*@ExceptionHandler(value = NotFoundException.class)
+    public ResponseEntity<HttpStatus> handleNotFoundException() {
+        log.info("Preparing Exception Handler for 'NotFoundException'");
+        return ResponseEntity.notFound().build();
+    }*/
 
 }

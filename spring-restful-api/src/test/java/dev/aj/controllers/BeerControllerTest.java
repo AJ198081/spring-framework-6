@@ -4,11 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.aj.domain.enums.BeerStyle;
 import dev.aj.domain.model.Beer;
+import dev.aj.exception_handling.NotFoundException;
 import dev.aj.service.BeerService;
 import dev.aj.service.implementations.BeerServiceImpl;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -205,6 +207,13 @@ class BeerControllerTest {
                 MockMvcResultMatchers.jsonPath("$.upc", is(firstBeer.getUpc())),
                 MockMvcResultMatchers.jsonPath("$.price", is(5.99))
         );
-
     }
+
+    @Test
+    void getBeerByNonExistenceIdThrowsNotFoundException() throws Exception {
+        Mockito.when(beerService.getBeerById(ArgumentMatchers.any(UUID.class))).thenThrow(NotFoundException.class);
+        mockMvc.perform(MockMvcRequestBuilders.get("/beer/id/{beerId}", UUID.randomUUID()))
+                .andExpect(MockMvcResultMatchers.status().isNotFound());
+    }
+
 }
