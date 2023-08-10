@@ -27,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -43,8 +44,9 @@ class BeerControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @Autowired
     private BeerService beerService;
+
     private Beer testBeer;
 
     @Captor
@@ -54,11 +56,15 @@ class BeerControllerTest {
 
     @BeforeAll
     static void beforeAll() {
-        listOfBeers = new BeerServiceImpl().listBeers();
     }
 
     @BeforeEach
     void setUp() throws JsonProcessingException {
+
+        listOfBeers = beerService.listBeers();
+
+        listOfBeers.stream()
+                .collect(Collectors.toSet());
 
         testBeer = Beer.builder()
                 .version(1)

@@ -2,8 +2,12 @@ package dev.aj.service.implementations;
 
 import dev.aj.domain.enums.BeerStyle;
 import dev.aj.domain.model.Beer;
+import dev.aj.repositories.BeerRepository;
 import dev.aj.service.BeerService;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,8 +19,9 @@ public class BeerServiceImpl implements BeerService {
 
     public static final String CREATED_DATE = "createdDate";
     private Map<UUID, Beer> beerMap;
+    private final BeerRepository beerRepository;
 
-    public BeerServiceImpl() {
+    public BeerServiceImpl(BeerRepository beerRepository) {
         this.beerMap = new HashMap<>();
 
         Beer beer1 = Beer.builder()
@@ -58,6 +63,14 @@ public class BeerServiceImpl implements BeerService {
         beerMap.put(beer1.getId(), beer1);
         beerMap.put(beer2.getId(), beer2);
         beerMap.put(beer3.getId(), beer3);
+
+        BeerService beerService = new BeerServiceJPA(beerRepository);
+
+        beerService.saveNewBeer(beer1);
+        beerService.saveNewBeer(beer2);
+        beerService.saveNewBeer(beer3);
+
+        this.beerRepository = beerRepository;
     }
 
     @Override
