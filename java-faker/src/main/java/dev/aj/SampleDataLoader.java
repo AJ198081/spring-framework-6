@@ -9,7 +9,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Component
@@ -38,7 +37,7 @@ public class SampleDataLoader implements CommandLineRunner {
                 .email(faker.internet().emailAddress())
                 .address(
                         Address.builder()
-                                .state(faker.address().streetAddress())
+                                .street(faker.address().streetAddress())
                                 .city(faker.address().city())
                                 .state(faker.address().state())
                                 .zip(faker.address().zipCode())
