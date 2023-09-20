@@ -25,6 +25,7 @@
         <module>dependency-injection-profiles</module>
         <module>spring-restful-api</module>
         <module>hibernate-sandbox</module>
+        <module>java-faker</module>
     </modules>
 
     <properties>
